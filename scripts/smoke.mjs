@@ -53,13 +53,43 @@ async function run(input) {
   };
 }
 
+// With SMOKE_ASSERT=1 (used in CI against the mock) verify behaviour, not just completion:
+//   url containing "legit"   → verdict legit, no complaint, bait skipped
+//   url containing "blocked" → recon failed but case done and a complaint still produced (fail-open)
+//   everything else          → verdict scam/suspicious and a complaint produced
+function check(r) {
+  if (r.error) return [`did not complete: ${r.error}`];
+  const problems = [];
+  const u = r.input.toLowerCase();
+  const hasComplaint = r.complaintFirstLine?.startsWith("COMPLAINT");
+  if (u.includes("legit")) {
+    if (r.verdict !== "legit") problems.push(`expected verdict legit, got ${r.verdict}`);
+    if (hasComplaint) problems.push("complaint generated for a legit site");
+    if (r.bait !== "done") problems.push(`bait should be skipped/done, got ${r.bait}`);
+  } else if (u.includes("blocked")) {
+    if (!r.recon.startsWith("failed")) problems.push(`expected recon failed, got ${r.recon}`);
+    if (r.status !== "done") problems.push(`expected status done, got ${r.status}`);
+    if (!hasComplaint) problems.push("blocked site should still fail open to a complaint");
+  } else {
+    if (!["scam", "suspicious"].includes(r.verdict)) problems.push(`unexpected verdict ${r.verdict}`);
+    if (!hasComplaint) problems.push("no complaint generated");
+    if (r.type === "url" || r.type === "message") {
+      if (!r.upi.length && !r.phones.length) problems.push("scam page yielded no identifiers");
+      if (r.related < 1) problems.push("mapper found no related sites");
+    }
+  }
+  return problems;
+}
+
 let fail = 0;
 for (const input of inputs) {
   const r = await run(input);
-  if (r.error) fail++;
+  const problems = process.env.SMOKE_ASSERT ? check(r) : r.error ? [r.error] : [];
+  if (problems.length) fail++;
   console.log("\n" + "─".repeat(70));
   console.log(input);
   console.log(JSON.stringify(r, null, 2));
+  for (const p of problems) console.log("  ✗ " + p);
 }
-console.log("\n" + (fail ? `${fail} case(s) failed to complete` : "all cases completed"));
+console.log("\n" + (fail ? `${fail} case(s) FAILED` : "all cases passed"));
 process.exit(fail ? 1 : 0);

@@ -1,0 +1,18 @@
+# Render blueprint — one long-running web service (required: in-memory cases + multi-minute agent runs).
+services:
+  - type: web
+    name: anglerfish
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: TINYFISH_API_KEY
+        sync: false          # set in the Render dashboard
+      - key: TINYFISH_PROXY_COUNTRY
+        value: IN
+      - key: TINYFISH_BROWSER_PROFILE
+        value: stealth

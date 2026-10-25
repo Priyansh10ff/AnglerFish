@@ -1,0 +1,37 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: start mock TinyFish + app
+        run: |
+          node mock/tinyfish.mjs &
+          TINYFISH_API_KEY=mock \
+          TINYFISH_AGENT_BASE=http://localhost:4010/v1 \
+          TINYFISH_SEARCH_BASE=http://localhost:4010/search \
+          TINYFISH_FETCH_BASE=http://localhost:4010/fetch \
+          MOCK_DELAY_MS=100 \
+          npm start &
+          for i in $(seq 1 30); do curl -sf localhost:3000 >/dev/null && break; sleep 1; done
+
+      - name: smoke (6 scenarios incl. legit + blocked)
+        run: |
+          SMOKE_ASSERT=1 node scripts/smoke.mjs \
+            "quickloan-support@okaxis" \
+            "9876543210" \
+            "KYC pending: https://kyc-sbi-update.top/verify or WhatsApp 9123456780" \
+            "https://quick-loan-approval.co/apply" \
+            "https://example-legit-saas.com/" \
+            "https://blocked-site.in/pay"

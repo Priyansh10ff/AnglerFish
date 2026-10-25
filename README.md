@@ -1,43 +1,104 @@
 # Anglerfish
 
-AI agents that bait scammers back. Paste a scam link / UPI ID / phone / WhatsApp forward →
-TinyFish agents investigate it in isolated remote browsers → evidence dossier + pre-filled
-cybercrime.gov.in complaint.
+**AI agents that bait scammers back.**
 
-Team Slytherinnn · Swim with TinyFish, SST.
+Paste a scam link, UPI ID, phone number or forwarded WhatsApp message. TinyFish web agents open it in an isolated remote browser, bait the first form with a fake identity to reveal the hidden payment step, map sibling sites sharing the same identifiers, and hand back an evidence dossier plus a pre-filled [cybercrime.gov.in](https://cybercrime.gov.in) complaint — in about two minutes.
 
-## Run
+Team Slytherinnn (Vikram J Purohit · Priyansh Dugar · Ayush Saini) — Swim with TinyFish, Scaler School of Technology.
+
+---
+
+## Why
+
+Indians lost about ₹19,813 crore to cyber fraud in 2025 across 21.7 lakh complaints. A victim can block the number; the scam site stays live and returns on new domains. Filing a useful report needs evidence — screenshots, payment identifiers, related domains — that nobody should collect by hand from a hostile page. Anglerfish collects it in a browser the scammer can't touch.
+
+## What it does
+
+| Step | Agent | What happens |
+|---|---|---|
+| 1 | **Recon** | Opens the page in an isolated TinyFish browser. Decides whether it's actually a scam, extracts UPI IDs, phones, Telegram handles, emails, bank accounts. |
+| 2 | **Bait** | *Only if recon says scam/suspicious.* Fills the lead form with an obviously fake identity, submits, records the hidden next page and any payment demanded. |
+| 3 | **Mapper** | TinyFish Search for every identifier found, then Fetch-verifies candidate pages actually contain it. Builds the campaign graph. |
+| 4 | **Report** | Evidence dossier + complaint text, printable to PDF. User submits it themselves (the portal needs OTP login). |
+
+A site that recon clears as legitimate gets an assessment, **not** a complaint — bait and mapping are skipped so no fake data ever hits a real business.
+
+## Run locally
+
+Prereqs: Node 18+ and a TinyFish API key ([docs](https://docs.tinyfish.ai/authentication)).
 
 ```bash
 npm install
-cp .env.example .env.local   # add your TINYFISH_API_KEY
-npm run dev                  # http://localhost:3000
+cp .env.example .env        # then put your key in TINYFISH_API_KEY
+npm run dev                 # http://localhost:3000
 ```
 
-Get a key at https://docs.tinyfish.ai/authentication.
+> Keep **one** env file. Next.js loads `.env.local` *over* `.env`; a leftover placeholder in `.env.local` will shadow your real key and every run will 401.
 
-## How it works
+### Environment
 
-1. `POST /api/cases` creates a case and kicks off the pipeline (`lib/pipeline.ts`).
-2. **Recon** and **Bait** run in parallel via TinyFish `/run-sse` (`lib/tinyfish.ts`),
-   streaming progress and a live browser `streaming_url` into the case state.
-3. **Mapper** takes the UPI IDs / phones / handles those agents extract, runs TinyFish
-   Search for each, then Fetch-verifies the candidate pages share an identifier.
-4. The browser subscribes to `GET /api/cases/:id/events` (SSE) and renders live sessions,
-   extracted evidence, and the campaign graph. `/case/:id/report` builds the dossier +
-   complaint (printable to PDF).
+| Variable | Default | Notes |
+|---|---|---|
+| `TINYFISH_API_KEY` | — | Required. |
+| `TINYFISH_PROXY_COUNTRY` | `IN` | ISO country for the agent's proxy. Indian scam sites often blank non-Indian IPs; if `IN` isn't available on your plan, fall back to `US`. |
+| `TINYFISH_BROWSER_PROFILE` | `stealth` | `lite` is cheaper; `stealth` survives more anti-bot. |
+| `TINYFISH_AGENT_BASE` / `TINYFISH_SEARCH_BASE` / `TINYFISH_FETCH_BASE` | real endpoints | Override to point at the mock. |
 
-## Safety (enforced in prompts, `lib/prompts.ts`)
+### Test without a key
 
-Observe and report only. Fake test identity only — never real names, numbers, cards or OTPs.
-Never download/install/run anything. The user submits the complaint themselves (OTP login).
+```bash
+npm run mock       # terminal 1: fake TinyFish on :4010
+npm run dev:mock   # terminal 2 (mac/linux) — on Windows, set the three *_BASE vars + TINYFISH_API_KEY=mock in .env and run `npm run dev`
+npm run smoke      # terminal 3: runs 5 inputs, prints verdict/identifiers per case
+```
 
-## Proxy note
+The mock picks a scenario from the URL: contains `legit` → cleared; contains `blocked` → `SITE_BLOCKED`; anything else → scam with identifiers.
 
-The event brief says TinyFish proxies cover US/GB/CA/DE/FR/JP/AU. Indian scam sites may blank
-non-Indian IPs — `TINYFISH_PROXY_COUNTRY=IN` is tried first; test this early, it decides the project.
+`npm run smoke` works the same against a real key, and accepts URLs as arguments:
+
+```bash
+node scripts/smoke.mjs "https://suspicious.example/pay" "scamid@upi"
+```
+
+## Deploy
+
+The case store is in-memory and agent runs take minutes, so this needs a **single long-running Node process**, not serverless functions. Vercel's default function model will drop cases and kill pipelines mid-run.
+
+**Render / Railway / Fly (recommended):**
+
+- Build: `npm ci && npm run build`
+- Start: `npm start`
+- Set `TINYFISH_API_KEY` (+ optional vars above)
+- `render.yaml` and `Dockerfile` are included; Render picks the blueprint up automatically.
+
+**Docker anywhere:**
+
+```bash
+docker build -t anglerfish .
+docker run -p 3000:3000 -e TINYFISH_API_KEY=sk-... anglerfish
+```
+
+For multi-instance or restart-safe deployment, swap `lib/store.ts` for Supabase — the interface is three functions.
+
+## Safety
+
+Enforced in the agent prompts (`lib/prompts.ts`) and the pipeline (`lib/pipeline.ts`):
+
+- Observe and report only. The agents never attack, disrupt or exploit anything.
+- Only an obviously fake test identity is ever entered. Never real names, numbers, cards or OTPs. Never a payment.
+- Nothing is downloaded, installed or run from a target site.
+- All browsing happens in TinyFish remote sessions, never on the user's or team's machine.
+- Bait runs only after recon flags the site; legitimate sites are never submitted to.
+- The user files the complaint themselves.
+
+## Architecture
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## Stack
 
-Next.js 15 (App Router) · TypeScript · Tailwind v4 · @xyflow/react · in-memory store
-(swap `lib/store.ts` for Supabase to persist cases).
+Next.js 15 (App Router) · TypeScript · Tailwind v4 · @xyflow/react · TinyFish Agent / Search / Fetch APIs.
+
+## License
+
+MIT
