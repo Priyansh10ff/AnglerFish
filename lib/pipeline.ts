@@ -1,7 +1,7 @@
 // Case pipeline: recon + bait in parallel, then campaign mapper on the
 // identifiers they extract. All TinyFish calls happen server-side.
 import { randomUUID } from "crypto";
-import { runAgentStream, searchWeb, fetchUrls } from "./tinyfish";
+import { runAgentStream, searchWeb, fetchUrls, getRun } from "./tinyfish";
 import { RECON_GOAL, baitGoal, RECON_SCHEMA, BAIT_SCHEMA } from "./prompts";
 import { putCase, updateCase, getCase } from "./store";
 import type {
@@ -29,6 +29,8 @@ const emptyAgent = <T>() => ({
   progress: [] as string[],
   result: null as T | null,
   error: null,
+  steps: [] as CaseState["recon"]["steps"],
+  videoUrl: null,
 });
 
 export function createCase(input: string): CaseState {
@@ -154,11 +156,34 @@ async function runBrowserAgent(
         s[which].error = "stream ended without a result";
       }
     });
+    await attachRunArtifacts(id, which);
   } catch (err) {
     updateCase(id, (s) => {
       s[which].status = "failed";
       s[which].error = err instanceof Error ? err.message : String(err);
     });
+  }
+}
+
+/** Pull per-step screenshots + recording URL for the dossier. Non-fatal. */
+async function attachRunArtifacts(id: string, which: "recon" | "bait"): Promise<void> {
+  const runId = getCase(id)?.[which].runId;
+  if (!runId) return;
+  try {
+    const run = await getRun(runId);
+    const steps = (run.steps ?? [])
+      .filter((s) => s.screenshot)
+      .map((s) => ({
+        action: s.action ?? "",
+        screenshot: s.screenshot ?? null,
+        timestamp: s.timestamp ?? null,
+      }));
+    updateCase(id, (s) => {
+      s[which].steps = steps.slice(-12); // last 12 steps are the ones that matter (payment page etc.)
+      s[which].videoUrl = run.video_url ?? null;
+    });
+  } catch {
+    updateCase(id, (s) => void s[which].progress.push("(screenshots unavailable for this run)"));
   }
 }
 

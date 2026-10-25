@@ -29,6 +29,12 @@ export interface BaitResult extends Identifiers {
   payment_requested: string | null;
 }
 
+export interface RunStep {
+  action: string;
+  screenshot: string | null; // TinyFish screenshot URL (served via /api/screenshot proxy)
+  timestamp: string | null;
+}
+
 export interface AgentState<T> {
   status: AgentStatus;
   runId: string | null;
@@ -36,6 +42,8 @@ export interface AgentState<T> {
   progress: string[];
   result: T | null;
   error: string | null;
+  steps: RunStep[];
+  videoUrl: string | null;
 }
 
 export interface RelatedSite {

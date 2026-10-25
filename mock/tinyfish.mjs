@@ -72,6 +72,7 @@ async function sse(req, res, body) {
   const s = scenario(body.url);
   const isBait = /lead-capture form|fill it with EXACTLY/i.test(body.goal || "");
   const runId = "mock_" + Math.random().toString(36).slice(2, 10);
+  runs.set(runId, { isBait, scenario: s });
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
   const send = (o) => res.write(`data: ${JSON.stringify({ timestamp: new Date().toISOString(), ...o })}\n\n`);
 
@@ -120,6 +121,47 @@ function fetchPages(urls) {
   };
 }
 
+// ---- step screenshots (fake "browser" frames rendered as SVG) ----
+const runs = new Map(); // runId -> { isBait, scenario }
+
+function frame(title, lines, accent = "#b3261e") {
+  const body = lines.map((l, i) => `<text x="40" y="${150 + i * 34}" font-size="20" fill="#222" font-family="Arial">${l}</text>`).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500">
+  <rect width="800" height="500" fill="#fff"/>
+  <rect width="800" height="56" fill="#f1f1f1"/><circle cx="24" cy="28" r="7" fill="#f55"/><circle cx="46" cy="28" r="7" fill="#fb3"/><circle cx="68" cy="28" r="7" fill="#5c5"/>
+  <rect x="96" y="16" width="620" height="24" rx="12" fill="#fff" stroke="#ddd"/><text x="110" y="33" font-size="13" fill="#666" font-family="monospace">${title}</text>
+  <rect x="0" y="56" width="800" height="60" fill="${accent}"/><text x="40" y="95" font-size="26" fill="#fff" font-family="Arial" font-weight="bold">SBI Instant Loan — Pre-Approved ₹2,00,000</text>
+  ${body}</svg>`;
+}
+
+const STEPS = {
+  recon: [
+    ["Navigate to target page", ["Congratulations! Your loan is PRE-APPROVED.", "Apply within 10 minutes to avoid cancellation.", "[ Name ] [ Mobile ] [ Email ]  ( APPLY NOW )"]],
+    ["Scroll and read page content", ["Trusted by 2,00,000+ customers*", "Processing fee: ₹499 (refundable)", "Support: WhatsApp 9123456780 · Telegram @quickl0an_support"]],
+    ["Extract identifiers from page", ["Found UPI: quickloan.pay@ybl", "Found UPI: kycupdate@paytm", "Found phone: 9123456780"]],
+  ],
+  bait: [
+    ["Fill form: name, phone, email (fake identity)", ["Name: Ramesh Testkumar", "Mobile: 9999999991", "Email: ramesh.testkumar.fake@example.com"]],
+    ["Click APPLY NOW", ["Verifying your details…", "Please wait, do not close this page"]],
+    ["Observe payment page", ["Pay ₹499 processing fee to unlock disbursal", "UPI: quickloan.pay@ybl   [ QR CODE ]", "Loan officer WhatsApp: 9988776655"]],
+  ],
+};
+
+function runDetails(runId) {
+  const r = runs.get(runId) ?? { isBait: false, scenario: "scam" };
+  const kind = r.isBait ? "bait" : "recon";
+  const steps = (r.scenario === "legit" ? STEPS.recon.slice(0, 1) : STEPS[kind]).map(([action], i) => ({
+    id: `${runId}-s${i}`,
+    timestamp: new Date().toISOString(),
+    status: "COMPLETED",
+    action,
+    screenshot: `http://localhost:${PORT}/runs/${runId}/steps/${i}/screenshot`,
+    html: null,
+    duration: "1.1s",
+  }));
+  return { run_id: runId, status: "COMPLETED", video_url: null, steps };
+}
+
 http
   .createServer(async (req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -129,9 +171,18 @@ http
     const json = (o, code = 200) => { res.writeHead(code, { "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
 
     if (url.pathname.endsWith("/automation/run-sse")) return sse(req, res, body);
+    let m;
+    if ((m = url.pathname.match(/^\/v1\/runs\/([^/]+)$/))) return json(runDetails(m[1]));
+    if ((m = url.pathname.match(/^\/runs\/([^/]+)\/steps\/(\d+)\/screenshot$/))) {
+      const r = runs.get(m[1]) ?? { isBait: false, scenario: "scam" };
+      const kind = r.isBait ? "bait" : "recon";
+      const step = STEPS[kind][Number(m[2])] ?? STEPS.recon[0];
+      res.writeHead(200, { "Content-Type": "image/svg+xml" });
+      return res.end(frame(body.url || "https://quick-loan-approval.co/apply", step[1]));
+    }
     if (url.pathname.startsWith("/search")) return json(search(url.searchParams.get("query")));
     if (url.pathname.startsWith("/fetch")) return json(fetchPages(body.urls || []));
-    if (url.pathname.startsWith("/viewer/")) { res.writeHead(200, { "Content-Type": "text/html" }); return res.end(`<body style="background:#111;color:#0f0;font-family:monospace;padding:20px">mock live browser · ${url.pathname.split("/").pop()}</body>`); }
+    if (url.pathname.startsWith("/viewer/")) { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }); return res.end(`<!doctype html><meta charset="utf-8"><body style="background:#111;color:#0f0;font-family:monospace;padding:20px">mock live browser · ${url.pathname.split("/").pop()}<br><br>(real runs embed TinyFish's streaming_url here)</body>`); }
     json({ error: "unknown mock route " + url.pathname }, 404);
   })
   .listen(PORT, () => console.log(`mock tinyfish on :${PORT}`));

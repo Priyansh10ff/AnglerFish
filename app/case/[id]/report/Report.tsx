@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { CaseState } from "@/lib/types";
 import { mergedIdentifiers } from "@/lib/evidence";
+import { StepGallery } from "@/components/StepGallery";
 
 export default function Report({ c, complaint }: { c: CaseState; complaint: string }) {
   const [copied, setCopied] = useState(false);
@@ -72,6 +73,22 @@ export default function Report({ c, complaint }: { c: CaseState; complaint: stri
           </tbody>
         </table>
       </section>
+
+      {(c.recon.steps.length > 0 || c.bait.steps.length > 0) && (
+        <section className="mt-6">
+          <h2 className="mono-label text-[var(--red)]">Screenshots (isolated browser session)</h2>
+          <StepGallery title="Recon" steps={c.recon.steps} />
+          <StepGallery title="Bait — after submitting the fake identity" steps={c.bait.steps} />
+          {(c.recon.videoUrl || c.bait.videoUrl) && (
+            <p className="no-print text-xs text-[var(--muted)] mt-2">
+              Session recordings:{" "}
+              {c.recon.videoUrl && <a className="underline" href={c.recon.videoUrl} target="_blank" rel="noreferrer">recon</a>}{" "}
+              {c.bait.videoUrl && <a className="underline" href={c.bait.videoUrl} target="_blank" rel="noreferrer">bait</a>}{" "}
+              (links expire after 15 min)
+            </p>
+          )}
+        </section>
+      )}
 
       {c.mapper.sites.length > 0 && (
         <section className="mt-6">

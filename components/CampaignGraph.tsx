@@ -33,7 +33,7 @@ export default function CampaignGraph({ c }: { c: CaseState }) {
       const id = `ident-${i}`;
       nodes.push({
         id,
-        position: { x: -260 + (i % 2) * 520, y: 90 + Math.floor(i / 2) * 70 },
+        position: { x: -330 + (i % 3) * 330, y: 110 + Math.floor(i / 3) * 70 },
         data: { label: ident },
         style: nodeStyle,
       });
@@ -44,7 +44,7 @@ export default function CampaignGraph({ c }: { c: CaseState }) {
       const id = `site-${i}`;
       nodes.push({
         id,
-        position: { x: -320 + (i % 3) * 320, y: 320 + Math.floor(i / 3) * 80 },
+        position: { x: -330 + (i % 3) * 330, y: 300 + Math.floor(i / 3) * 80 },
         data: { label: hostOf(s.url) ?? s.url },
         style: { ...nodeStyle, borderStyle: s.source === "fetch" ? "solid" : "dashed" },
       });
@@ -64,7 +64,16 @@ export default function CampaignGraph({ c }: { c: CaseState }) {
 
   return (
     <div className="h-80 card relative">
-      <ReactFlow nodes={nodes} edges={edges} fitView proOptions={{ hideAttribution: true }}>
+      {/* key on node count: nodes stream in over time, and fitView only runs at mount */}
+      <ReactFlow
+        key={nodes.length}
+        nodes={nodes}
+        edges={edges}
+        fitView
+        fitViewOptions={{ padding: 0.25 }}
+        nodesDraggable={false}
+        proOptions={{ hideAttribution: true }}
+      >
         <Background color="#c9c4b4" />
       </ReactFlow>
       {empty && c.status !== "running" && (

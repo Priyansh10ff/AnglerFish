@@ -6,6 +6,28 @@ Paste a scam link, UPI ID, phone number or forwarded WhatsApp message. TinyFish 
 
 Team Slytherinnn (Vikram J Purohit · Priyansh Dugar · Ayush Saini) — Swim with TinyFish, Scaler School of Technology.
 
+<p align="center">
+  <img src="docs/screenshots/case.png" width="900" alt="A scam case: verdict banner, live recon and bait sessions with step screenshots, extracted identifiers, campaign graph">
+</p>
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/home.png" alt="Home: paste a scam"></td>
+    <td><img src="docs/screenshots/legit.png" alt="A legitimate site: recon clears it, bait is never sent, no complaint"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Paste a link, UPI ID, phone or WhatsApp forward</sub></td>
+    <td align="center"><sub>Legit site → assessment only. Bait and complaint are gated on recon's verdict.</sub></td>
+  </tr>
+</table>
+
+<details>
+<summary>Evidence dossier with step-by-step screenshots and the pre-filled complaint</summary>
+<img src="docs/screenshots/report.png" width="900" alt="Dossier: suspect, identifiers, screenshot gallery from the isolated browser, related sites, complaint text">
+</details>
+
+<sub>Screenshots are from the bundled mock TinyFish scenario (`npm run mock`); real runs embed TinyFish's live `streaming_url` and the agent's own step screenshots.</sub>
+
 ---
 
 ## Why
@@ -19,7 +41,7 @@ Indians lost about ₹19,813 crore to cyber fraud in 2025 across 21.7 lakh compl
 | 1 | **Recon** | Opens the page in an isolated TinyFish browser. Decides whether it's actually a scam, extracts UPI IDs, phones, Telegram handles, emails, bank accounts. |
 | 2 | **Bait** | *Only if recon says scam/suspicious.* Fills the lead form with an obviously fake identity, submits, records the hidden next page and any payment demanded. |
 | 3 | **Mapper** | TinyFish Search for every identifier found, then Fetch-verifies candidate pages actually contain it. Builds the campaign graph. |
-| 4 | **Report** | Evidence dossier + complaint text, printable to PDF. User submits it themselves (the portal needs OTP login). |
+| 4 | **Report** | Evidence dossier — identifiers, the agents' step-by-step screenshots (proxied, key never reaches the browser), related sites — plus complaint text, printable to PDF. User submits it themselves (the portal needs OTP login). |
 
 A site that recon clears as legitimate gets an assessment, **not** a complaint — bait and mapping are skipped so no fake data ever hits a real business.
 
@@ -58,6 +80,12 @@ The mock picks a scenario from the URL: contains `legit` → cleared; contains `
 
 ```bash
 node scripts/smoke.mjs "https://suspicious.example/pay" "scamid@upi"
+```
+
+Regenerate the README screenshots headlessly (needs `npm i -D playwright && npx playwright install chromium`):
+
+```bash
+BASE=http://localhost:3000 node scripts/screenshots.mjs
 ```
 
 ## Deploy

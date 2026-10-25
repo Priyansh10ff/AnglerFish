@@ -83,6 +83,35 @@ export async function runAgentStream(opts: RunAgentOptions): Promise<void> {
   }
 }
 
+export interface RunDetails {
+  run_id: string;
+  status: string;
+  video_url: string | null;
+  steps: { id?: string; action?: string; screenshot?: string | null; timestamp?: string; status?: string }[];
+}
+
+/** GET /v1/runs/{id} — per-step actions + screenshot URLs (URLs need the API key; see /api/screenshot). */
+export async function getRun(runId: string): Promise<RunDetails> {
+  const res = await fetch(`${AGENT_BASE}/runs/${encodeURIComponent(runId)}?screenshots=url`, {
+    headers: { "X-API-Key": apiKey() },
+  });
+  if (!res.ok) throw new Error(`TinyFish get run ${res.status}`);
+  return (await res.json()) as RunDetails;
+}
+
+/** Host allow-list for the screenshot proxy. */
+export function isTinyFishAssetUrl(u: string): boolean {
+  try {
+    const url = new URL(u);
+    const base = new URL(AGENT_BASE);
+    return url.protocol === base.protocol && url.host === base.host;
+  } catch {
+    return false;
+  }
+}
+
+export { apiKey as tinyfishApiKey };
+
 export interface SearchResult {
   position: number;
   site_name: string;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CaseState, AgentState } from "@/lib/types";
 import { mergedIdentifiers } from "@/lib/evidence";
 import CampaignGraph from "./CampaignGraph";
+import { StepStrip } from "./StepGallery";
 
 export default function CaseView({ caseId }: { caseId: string }) {
   const [c, setC] = useState<CaseState | null>(null);
@@ -164,6 +165,8 @@ function SessionPanel({ title, agent, skipped }: { title: string; agent: AgentSt
                 : "no live session"}
         </div>
       )}
+
+      <StepStrip steps={agent.steps} />
 
       <div className="mt-2 h-20 overflow-y-auto text-xs text-[var(--muted)] font-mono space-y-0.5">
         {agent.progress.slice(-8).map((p, i) => (
