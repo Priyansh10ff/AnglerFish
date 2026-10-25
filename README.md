@@ -21,7 +21,7 @@ and a pre-filled <a href="https://cybercrime.gov.in">cybercrime.gov.in</a> compl
 
 <br><br>
 
-<sub>Built by <b>Team Slytherinnn</b> (Vikram J Purohit · Priyansh Dugar · Ayush Saini) for Swim with TinyFish, Scaler School of Technology.</sub>
+<sub>Built by <b>Team Slytherinnn</b> (<a href="https://github.com/Priyansh10ff">Priyansh Dugar</a> · <a href="https://github.com/VikramPurohit358">Vikram J Purohit</a> · Ayush Saini) for Swim with TinyFish, Scaler School of Technology.</sub>
 
 </div>
 
@@ -41,6 +41,7 @@ and a pre-filled <a href="https://cybercrime.gov.in">cybercrime.gov.in</a> compl
 - [Project structure](#project-structure)
 - [Roadmap](#roadmap)
 - [License](#license)
+- [Built by](#built-by)
 
 <br>
 
@@ -252,3 +253,13 @@ Dockerfile · render.yaml · .github/workflows/ci.yml
 ## License
 
 MIT
+
+<br>
+
+## Built by
+
+Team Slytherinnn, Scaler School of Technology
+
+- [Priyansh Dugar](https://github.com/Priyansh10ff)
+- [Vikram J Purohit](https://github.com/VikramPurohit358)
+- Ayush Saini
