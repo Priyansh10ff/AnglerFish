@@ -3,9 +3,10 @@
 // Search: GET  https://api.search.tinyfish.ai?query=...
 // Fetch:  POST https://api.fetch.tinyfish.ai
 
-const AGENT_BASE = "https://agent.tinyfish.ai/v1";
-const SEARCH_BASE = "https://api.search.tinyfish.ai";
-const FETCH_BASE = "https://api.fetch.tinyfish.ai";
+// Overridable so tests can point at mock/tinyfish.mjs (see package.json "dev:mock").
+const AGENT_BASE = process.env.TINYFISH_AGENT_BASE || "https://agent.tinyfish.ai/v1";
+const SEARCH_BASE = process.env.TINYFISH_SEARCH_BASE || "https://api.search.tinyfish.ai";
+const FETCH_BASE = process.env.TINYFISH_FETCH_BASE || "https://api.fetch.tinyfish.ai";
 
 function apiKey(): string {
   const k = process.env.TINYFISH_API_KEY;

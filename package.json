@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "mock": "node mock/tinyfish.mjs",
+    "dev:mock": "TINYFISH_API_KEY=mock TINYFISH_AGENT_BASE=http://localhost:4010/v1 TINYFISH_SEARCH_BASE=http://localhost:4010/search TINYFISH_FETCH_BASE=http://localhost:4010/fetch next dev",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.3.5",

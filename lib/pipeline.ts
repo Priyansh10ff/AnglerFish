@@ -72,8 +72,16 @@ async function runPipeline(id: string): Promise<void> {
       return;
     }
 
-    // 2. Bait only once recon says scam / suspicious.
-    await runBrowserAgent(id, "bait", c.targetUrl, baitGoal(), BAIT_SCHEMA);
+    // 2. Bait only once recon says scam / suspicious — and not if the site blocked us.
+    const reconErr = getCase(id)?.recon.error ?? "";
+    if (/block/i.test(reconErr)) {
+      updateCase(id, (s) => {
+        s.bait.status = "failed";
+        s.bait.error = "skipped — site blocked the recon browser, bait would be blocked too";
+      });
+    } else {
+      await runBrowserAgent(id, "bait", c.targetUrl, baitGoal(), BAIT_SCHEMA);
+    }
   } else {
     // Bare UPI / phone: nothing to browse, treat as reported-suspicious and map it.
     updateCase(id, (s) => {
