@@ -262,4 +262,4 @@ Team Slytherinnn, Scaler School of Technology
 
 - [Priyansh Dugar](https://github.com/Priyansh10ff)
 - [Vikram J Purohit](https://github.com/VikramPurohit358)
-- Ayush Saini
+- [Ayush Saini](http://github.com/AyushSaini-SST)
