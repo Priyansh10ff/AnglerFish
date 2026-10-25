@@ -1,19 +1,13 @@
 "use client";
 import { useState } from "react";
 import type { CaseState } from "@/lib/types";
+import { mergedIdentifiers } from "@/lib/evidence";
 
 export default function Report({ c, complaint }: { c: CaseState; complaint: string }) {
   const [copied, setCopied] = useState(false);
   const r = c.recon.result;
   const b = c.bait.result;
-  const merge = (k: string) => {
-    const s = new Set<string>();
-    for (const res of [r, b]) {
-      const v = (res as any)?.[k];
-      if (Array.isArray(v)) v.forEach((x: string) => s.add(x));
-    }
-    return [...s];
-  };
+  const ids = mergedIdentifiers(c);
 
   async function copy() {
     await navigator.clipboard.writeText(complaint);
@@ -21,11 +15,21 @@ export default function Report({ c, complaint }: { c: CaseState; complaint: stri
     setTimeout(() => setCopied(false), 1500);
   }
 
+  const rows: [string, string[]][] = [
+    ["UPI IDs", ids.upi_ids],
+    ["Phone / WhatsApp", ids.phone_numbers],
+    ["Telegram", ids.telegram_handles],
+    ["Emails", ids.emails],
+    ["Bank accounts", ids.bank_accounts],
+  ];
+
   return (
     <main className="max-w-3xl mx-auto px-6 py-10">
       <div className="flex items-center justify-between border-b-2 border-[var(--ink)] pb-3">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Evidence dossier</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">
+            {c.verdict === "legit" ? "Assessment: no fraud indicators" : "Evidence dossier"}
+          </h1>
           <p className="mono-label text-[var(--muted)] mt-1">
             case {c.id} · {new Date(c.createdAt).toLocaleString()}
           </p>
@@ -38,12 +42,20 @@ export default function Report({ c, complaint }: { c: CaseState; complaint: stri
       <section className="mt-6">
         <h2 className="mono-label text-[var(--red)]">Suspect</h2>
         <p className="mt-1 font-mono text-sm break-all">{c.targetUrl ?? c.input}</p>
-        {r?.scam_type && (
+        {r?.verdict_reason && (
+          <p className="mt-2 text-sm">
+            <span className="mono-label text-[var(--red)] mr-2">{c.verdict}</span>
+            {r.verdict_reason}
+            {r.confidence && <span className="mono-label text-[var(--muted)] ml-2">confidence {r.confidence}</span>}
+          </p>
+        )}
+        {r?.scam_type?.trim() && (
           <p className="mt-2 text-sm">
             <b>{r.scam_type}</b>
             {r.brand_impersonated ? ` — impersonating ${r.brand_impersonated}` : ""}. {r.page_summary}
           </p>
         )}
+        {b?.form_found && <p className="mt-1 text-sm">After form submission: {b.next_page_summary}</p>}
         {b?.payment_requested && <p className="mt-1 text-sm">Payment demanded: {b.payment_requested}</p>}
       </section>
 
@@ -51,16 +63,10 @@ export default function Report({ c, complaint }: { c: CaseState; complaint: stri
         <h2 className="mono-label text-[var(--red)] mb-2">Identifiers</h2>
         <table className="w-full text-sm">
           <tbody>
-            {[
-              ["UPI IDs", merge("upi_ids")],
-              ["Phone / WhatsApp", merge("phone_numbers")],
-              ["Telegram", merge("telegram_handles")],
-              ["Emails", merge("emails")],
-              ["Bank accounts", merge("bank_accounts")],
-            ].map(([label, vals]) => (
-              <tr key={label as string} className="border-b border-[var(--line)]">
-                <td className="mono-label text-[var(--muted)] py-2 pr-3 w-40 align-top">{label as string}</td>
-                <td className="py-2 font-mono text-xs">{(vals as string[]).length ? (vals as string[]).join(", ") : "—"}</td>
+            {rows.map(([label, vals]) => (
+              <tr key={label} className="border-b border-[var(--line)]">
+                <td className="mono-label text-[var(--muted)] py-2 pr-3 w-40 align-top">{label}</td>
+                <td className="py-2 font-mono text-xs break-all">{vals.length ? vals.join(", ") : "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -82,15 +88,19 @@ export default function Report({ c, complaint }: { c: CaseState; complaint: stri
 
       <section className="mt-6">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="mono-label text-[var(--red)]">Pre-filled cybercrime.gov.in complaint</h2>
+          <h2 className="mono-label text-[var(--red)]">
+            {c.verdict === "legit" ? "Assessment" : "Pre-filled cybercrime.gov.in complaint"}
+          </h2>
           <button onClick={copy} className="no-print mono-label border border-[var(--ink)] px-3 py-1">
             {copied ? "copied" : "copy"}
           </button>
         </div>
         <pre className="card p-4 text-xs whitespace-pre-wrap font-mono leading-relaxed">{complaint}</pre>
-        <p className="text-xs text-[var(--muted)] mt-2">
-          The portal requires an OTP login, so you submit this yourself at cybercrime.gov.in.
-        </p>
+        {c.verdict !== "legit" && (
+          <p className="text-xs text-[var(--muted)] mt-2">
+            The portal requires an OTP login, so you submit this yourself at cybercrime.gov.in.
+          </p>
+        )}
       </section>
     </main>
   );

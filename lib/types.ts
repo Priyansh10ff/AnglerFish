@@ -12,10 +12,16 @@ export interface Identifiers {
 }
 
 export interface ReconResult extends Identifiers {
+  is_scam: boolean | null;
+  confidence: "high" | "medium" | "low" | null;
+  verdict_reason: string | null;
   brand_impersonated: string | null;
   scam_type: string | null;
   page_summary: string | null;
 }
+
+/** Case-level verdict derived from recon. */
+export type Verdict = "pending" | "scam" | "suspicious" | "legit";
 
 export interface BaitResult extends Identifiers {
   form_found: boolean;
@@ -47,6 +53,7 @@ export interface CaseState {
   inputType: InputType;
   targetUrl: string | null;
   status: "running" | "done" | "failed";
+  verdict: Verdict;
   recon: AgentState<ReconResult>;
   bait: AgentState<BaitResult>;
   mapper: {

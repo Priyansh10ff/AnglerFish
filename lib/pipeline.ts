@@ -40,6 +40,7 @@ export function createCase(input: string): CaseState {
     inputType: type,
     targetUrl,
     status: "running",
+    verdict: "pending",
     recon: emptyAgent<ReconResult>(),
     bait: emptyAgent<BaitResult>(),
     mapper: { status: "idle", progress: [], sites: [], error: null },
@@ -53,19 +54,37 @@ async function runPipeline(id: string): Promise<void> {
   const c = getCase(id);
   if (!c) return;
 
-  const browserAgents: Promise<void>[] = [];
   if (c.targetUrl) {
-    browserAgents.push(runBrowserAgent(id, "recon", c.targetUrl, RECON_GOAL, RECON_SCHEMA));
-    browserAgents.push(runBrowserAgent(id, "bait", c.targetUrl, baitGoal(), BAIT_SCHEMA));
+    // 1. Recon first — it decides whether this is worth baiting at all.
+    await runBrowserAgent(id, "recon", c.targetUrl, RECON_GOAL, RECON_SCHEMA);
+    const verdict = deriveVerdict(getCase(id)!);
+    updateCase(id, (s) => void (s.verdict = verdict));
+
+    if (verdict === "legit") {
+      // Never submit fake leads to a real business's form.
+      updateCase(id, (s) => {
+        s.bait.status = "done";
+        s.bait.progress.push("Recon cleared this site as legitimate — bait skipped.");
+        s.mapper.status = "done";
+        s.mapper.progress.push("Legitimate site — campaign mapping skipped.");
+        s.status = "done";
+      });
+      return;
+    }
+
+    // 2. Bait only once recon says scam / suspicious.
+    await runBrowserAgent(id, "bait", c.targetUrl, baitGoal(), BAIT_SCHEMA);
   } else {
+    // Bare UPI / phone: nothing to browse, treat as reported-suspicious and map it.
     updateCase(id, (s) => {
+      s.verdict = "suspicious";
       s.recon.status = "done";
       s.bait.status = "done";
       s.recon.progress.push("No URL in input — browser agents skipped, mapping identifier directly.");
     });
   }
 
-  await Promise.allSettled(browserAgents);
+  // 3. Campaign map on whatever identifiers we now have.
   await runMapper(id);
 
   updateCase(id, (s) => {
@@ -73,6 +92,15 @@ async function runPipeline(id: string): Promise<void> {
       s.recon.status === "failed" && s.bait.status === "failed" && s.mapper.status === "failed";
     s.status = failed ? "failed" : "done";
   });
+}
+
+/** Turn recon's structured answer into a case verdict. Fails open to "suspicious". */
+function deriveVerdict(c: CaseState): CaseState["verdict"] {
+  const r = c.recon.result;
+  if (!r || c.recon.status !== "done") return "suspicious";
+  if (r.is_scam === true) return "scam";
+  if (r.is_scam === false && (r.confidence === "high" || r.confidence === "medium")) return "legit";
+  return "suspicious";
 }
 
 async function runBrowserAgent(
