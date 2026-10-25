@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+:root {
+  --paper: #f2eee4;
+  --paper-2: #faf8f1;
+  --ink: #17150f;
+  --muted: #4a463c;
+  --line: #c9c4b4;
+  --red: #b3261e;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.mono-label {
+  font-family: ui-monospace, "Liberation Mono", Menlo, monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.card {
+  border: 1px solid var(--ink);
+  background: var(--paper-2);
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+}
